@@ -57,7 +57,9 @@ def plot_graphs(path=PREPROCESSED_DATA_PATH):
     plt.show()
 
 
-def plot_predictions(df: pd.DataFrame, test_dates, y_pred_real, L: int, M: int, Ns: int, target_col='BTC'):
+def plot_predictions(df: pd.DataFrame, test_dates, train_dates, test_predictions, train_predictions, L: int, M: int,
+                     Ns: int, epochs: int,
+                     target_col='BTC'):
     """Строит график фактических и предсказанных значений BTC"""
     plt.figure(figsize=(12, 6))
 
@@ -66,17 +68,25 @@ def plot_predictions(df: pd.DataFrame, test_dates, y_pred_real, L: int, M: int, 
 
     # График предсказанных значений (красный)
     test_dates = list(map(lambda x: x - timedelta(days=L), test_dates))
-    plt.plot(test_dates, y_pred_real, label='Предсказанная стоимость BTC', color='red', linestyle='-', linewidth=1)
+    plt.plot(test_dates, test_predictions, label='Предсказанная стоимость BTC', color='red', linestyle='-', linewidth=1)
 
-    plt.xlim(pd.Timestamp('2017-03-01'), pd.Timestamp('2020-04-01'))
+    # График предсказанных значений из тренировочной выборки (фиолетовый)
+    train_dates = list(map(lambda x: x - timedelta(days=L), train_dates))
+    plt.plot(test_dates, test_predictions, label='Предсказанная стоимость BTC', color='purple', linestyle='-',
+             linewidth=1)
+
+    # Параметры для заголовка графика и названия файла
+    params_string = f'(L={L}, M={M}, Ns={Ns}, epochs={epochs})'
+
+    plt.xlim(min(test_dates), max(test_dates))
     plt.xlabel('Дата')
     plt.ylabel('Цена BTC')
-    plt.title(f'Прогноз стоимости BTC (L={L}, M={M}, Ns={Ns})')
+    plt.title(f'Прогноз стоимости BTC {params_string}')
     plt.legend()
     plt.grid(True)
 
     plt.savefig(
-        IMAGE_PATH / f'{datetime.date.today()} (L={L}, M={M}, Ns={Ns}) {round(time.time() * 2) % 100000}.png',
+        IMAGE_PATH / f'{datetime.date.today()} {params_string} {round(time.time() * 2) % 100000}.png',
         dpi=300,
         bbox_inches="tight"
     )

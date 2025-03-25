@@ -1,61 +1,40 @@
-from pathlib import Path
-
-import pandas as pd
-from keras import Sequential
-from sklearn.preprocessing import MinMaxScaler
-
-from graph_utils import plot_graph
-from model_utils import create_dataset, train_model, predict, load_trained_model
-from settings import RAW_DATA_PATH, MAIN_DATA_NAME
+from src.settings import FEATURES_COUNT, RESOURCES_PATH, DATASET_NAME, MODEL_PATH, MODEL_NAME
+from src.utils.graphs import plot_graphs, plot_predictions
+from src.utils.models import prepare_data, train_model, load_trained_model, predict
 
 
-def handle():
-    model: Sequential | None = None
+def handle(L: int, M: int, Ns: int, epochs: int):
+    model = None
 
     while not model:
-        choice = input("Выберите действие:\n"
-                       "1. Обучение модели\n"
-                       "2. Загрузка модели\n"
-                       "3. Построить график по исходным данным\n")
+        print('\nВыберите действие:\n'
+              '1. Обучение модели\n'
+              '2. Загрузка модели\n'
+              '3. Построить график по исходным данным\n')
+        choice = input('>>> ')
 
         if choice == '1':
-            print('Запускаем обучение модели...')
-
-            # Загрузка данных
-            data = pd.read_csv(Path(RAW_DATA_PATH, MAIN_DATA_NAME))
-            prices = data['Price'].values
-
-            # Нормализация данных
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            scaled_prices = scaler.fit_transform(prices.reshape(-1, 1))
-
-            # Подготовка данных для обучения
-            M = 30  # Ширина окна наблюдения
-            L = 5  # Шаги вперед для предсказания
-
-            X, y = create_dataset(scaled_prices, M, L)
-            X = X.reshape(X.shape[0], X.shape[1])  # Преобразование для FFNN
-
-            # Обучение модели
-            model = train_model(X, y, hidden_units=50, epochs=50, batch_size=32)
-
-            print('Обучение модели завершено.')
-
+            X_train, X_test, y_train, y_test, scaler, df, df_scaled = \
+                prepare_data(RESOURCES_PATH / DATASET_NAME, 'BTC', M, L)
+            model = train_model(X_train, y_train, M, FEATURES_COUNT, Ns, epochs, 32, MODEL_PATH / MODEL_NAME)
+            if not model:
+                print('Не удалось обучить модель.')
         elif choice == '2':
-            t = load_trained_model()
-            if t:
-                model = t
-                print('Модель успешно загружена.')
-            else:
-                print('Обученная модель не найдена.')
-
+            X_train, X_test, y_train, y_test, scaler, df, df_scaled = \
+                prepare_data(RESOURCES_PATH / DATASET_NAME, 'BTC', M, L)
+            model = load_trained_model(filepath=MODEL_PATH / MODEL_NAME)
+            if not model:
+                print('Модель не найдена. Произведите обучение.')
         elif choice == '3':
-            plot_graph()
-
+            plot_graphs()
         else:
             print('Неверный вариант ответа')
 
-    input('Введите Enter для предсказания')
-    predictions = predict(model, X)
-    predictions = scaler.inverse_transform(predictions)  # Обратное преобразование
-    print(predictions)
+    print('Введите Enter для начала предсказывания...')
+    input('>>> ')
+
+    test_predictions = predict(model, X_test, scaler, df_scaled)
+    train_predictions = predict(model, X_train, scaler, df_scaled)
+    test_dates = df_scaled.index[-len(y_test):]
+    train_dates = df_scaled.index[:-len(y_test)]
+    plot_predictions(df, test_dates, train_dates, test_predictions, train_predictions, L, M, Ns, epochs)

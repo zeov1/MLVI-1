@@ -7,15 +7,16 @@ from keras.src.saving.saving_api import save_model
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-from src.settings import MODEL_PATH, MODEL_NAME, DATASET_NAME, RESOURCES_PATH
+from src.settings import RESOURCES_PATH
 
 
-def prepare_data(file_path=RESOURCES_PATH / DATASET_NAME, target_col='BTC', M=30, L=5):
+def prepare_data(file_path, target_col, M, L):
     """Загружает данные, нормализует и формирует обучающие примеры"""
     df = pd.read_csv(file_path, parse_dates=["Date"], index_col="Date").sort_index()
     scaler = MinMaxScaler()
     df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
-    # df_scaled.to_csv(RESOURCES_PATH / 'scaled_dataset.csv')
+
+    df_scaled.to_csv(RESOURCES_PATH / 'scaled_dataset.csv')
 
     def create_sequences(data, target_col, M, L):
         X, y = [], []
@@ -26,26 +27,26 @@ def prepare_data(file_path=RESOURCES_PATH / DATASET_NAME, target_col='BTC', M=30
 
     X, y = create_sequences(df_scaled, target_col, M, L)
     # Разобьем набор данных в соотношении 80/20, где 80% - обучающие примеры
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True)
 
     return X_train, X_test, y_train, y_test, scaler, df, df_scaled
 
 
-def train_model(X_train, y_train, M=30, feature_count=8, Ns=50, epochs=50, batch_size=16):
+def train_model(X_train, y_train, M, feature_count, Ns, epochs, batch_size, save_path):
     """Создает и обучает модель"""
     model = Sequential([
         Flatten(input_shape=(M, feature_count)),
         Dense(Ns, activation="relu"),
         Dense(Ns // 2, activation="relu"),
-        Dense(1)
+        Dense(1, activation="linear")
     ])
     model.compile(optimizer="adam", loss="mse", metrics=["mae"])
     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2)
-    save_model(model, MODEL_PATH / MODEL_NAME)
+    save_model(model, save_path)
     return model
 
 
-def load_trained_model(filepath=MODEL_PATH / MODEL_NAME) -> Sequential | None:
+def load_trained_model(filepath) -> Sequential | None:
     """Загружает обученную модель, если такая существует"""
     if filepath.exists():
         return load_model(filepath)
