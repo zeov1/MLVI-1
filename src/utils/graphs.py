@@ -8,6 +8,18 @@ from matplotlib import pyplot as plt
 from src.settings import IMAGE_PATH, PREPROCESSED_DATA_PATH, CURRENCIES
 
 
+def plot_history(history):
+    plt.figure(figsize=(12, 6))
+    plt.plot(history.history['loss'], label='Потери обучения')
+    plt.plot(history.history['val_loss'], label='Потери валидации')
+    plt.title('Потери обучения и валидации')
+    plt.xlabel('Циклы обучения')
+    plt.ylabel('Потери')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 def plot_graphs(path=PREPROCESSED_DATA_PATH):
     """Функция для вывода графика стоимости BTC по дням"""
 
@@ -61,24 +73,28 @@ def plot_predictions(df: pd.DataFrame, test_dates, train_dates, test_predictions
                      Ns: int, epochs: int,
                      target_col='BTC'):
     """Строит график фактических и предсказанных значений BTC"""
-    plt.figure(figsize=(12, 6))
+
+    plt.figure(figsize=(20, 10))
 
     # График реальных значений BTC (синий)
     plt.plot(df.index, df[target_col], label='Реальная стоимость BTC', color='blue', linewidth=1)
 
-    # График предсказанных значений (красный)
-    test_dates = list(map(lambda x: x - timedelta(days=L), test_dates))
-    plt.plot(test_dates, test_predictions, label='Предсказанная стоимость BTC', color='red', linestyle='-', linewidth=1)
+    # График предсказанных значений из тестовой выборки (красный)
+    test_dates = list(map(lambda x: x + timedelta(days=L), test_dates))
+    plt.plot(test_dates, test_predictions, label='Предсказанная стоимость BTC (тест)', color='red', linestyle='-',
+             linewidth=1)
 
     # График предсказанных значений из тренировочной выборки (фиолетовый)
-    train_dates = list(map(lambda x: x - timedelta(days=L), train_dates))
-    plt.plot(test_dates, test_predictions, label='Предсказанная стоимость BTC', color='purple', linestyle='-',
+    train_dates = list(map(lambda x: x + timedelta(days=L), train_dates))
+    plt.plot(train_dates, train_predictions, label='Предсказанная стоимость BTC (трен)', color='purple', linestyle='-',
              linewidth=1)
 
     # Параметры для заголовка графика и названия файла
     params_string = f'(L={L}, M={M}, Ns={Ns}, epochs={epochs})'
 
-    plt.xlim(min(test_dates), max(test_dates))
+    plt.xlim(min(train_dates) + (min(test_dates) - min(train_dates)) // 2, max(test_dates))
+    # plt.xlim(pd.Timestamp(year=2013, month=1, day=1), pd.Timestamp(year=2014, month=1, day=1))
+    # plt.ylim(0, 1300)
     plt.xlabel('Дата')
     plt.ylabel('Цена BTC')
     plt.title(f'Прогноз стоимости BTC {params_string}')

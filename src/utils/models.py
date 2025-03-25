@@ -6,6 +6,7 @@ from keras.src.saving import load_model
 from keras.src.saving.saving_api import save_model
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from keras.api.regularizers import l2
 
 from src.settings import RESOURCES_PATH
 
@@ -27,7 +28,7 @@ def prepare_data(file_path, target_col, M, L):
 
     X, y = create_sequences(df_scaled, target_col, M, L)
     # Разобьем набор данных в соотношении 80/20, где 80% - обучающие примеры
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
     return X_train, X_test, y_train, y_test, scaler, df, df_scaled
 
@@ -36,14 +37,14 @@ def train_model(X_train, y_train, M, feature_count, Ns, epochs, batch_size, save
     """Создает и обучает модель"""
     model = Sequential([
         Flatten(input_shape=(M, feature_count)),
-        Dense(Ns, activation="relu"),
-        Dense(Ns // 2, activation="relu"),
+        Dense(Ns, activation="relu", kernel_regularizer=l2(0.001)),
+        # Dense(Ns // 2, activation="relu"),
         Dense(1, activation="linear")
     ])
     model.compile(optimizer="adam", loss="mse", metrics=["mae"])
-    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2)
+    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2)
     save_model(model, save_path)
-    return model
+    return model, history
 
 
 def load_trained_model(filepath) -> Sequential | None:
